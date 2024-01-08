@@ -1,0 +1,15 @@
+body {
+  padding-top: 54px;
+}
+
+@media (min-width: 992px) {
+  body {
+    padding-top: 56px;
+  }
+
+img.d-flex.mr-3.rounded-circle {
+
+  width: 50px;
+}
+
+}

@@ -1,0 +1,180 @@
+const http = require('https');
+const execSync = require('child_process').execSync;
+const fs = require('fs-extra');
+const configJson = require('../src/assets/config.json');
+const pachConfigJson = require('../src/config/config.patch-prod.json');
+const portNumber = process.argv[2];
+
+let SWAGGER_URL = 'https://localhost:{PORT}/swagger/v1/swagger.json';
+const API_URL = 'https://localhost:{PORT}';
+const SWAGGER_FIXED_PATH = './SWAGGER_fixed.json';
+const SWAGGER_GENERATED_PATH = 'src/app/modules/shared/generated';
+const CRITICAL_PARAMS = ['X-LightCRM-AppMode'];
+function downloadJSON(): Promise<string>
+{
+    return new Promise((resolve, reject) =>
+    {
+        http.get(SWAGGER_URL, res =>
+        {
+            let data = '';
+
+            res.on('data', d =>
+            {
+                data += d;
+            });
+            res.on('end', () =>
+            {
+                resolve(JSON.parse(data));
+            });
+        });
+
+    });
+}
+function isObject(val)
+{
+    return (typeof val === 'object');
+}
+function checkIsIsInstalledOpenApi(): boolean
+{
+
+    let installLog: string = '';
+    try
+    {
+        installLog = execSync('npm list -g @openapitools/openapi-generator-cli').toString();
+    }
+    catch (e) { installLog = '(empty)'; }
+    if (installLog.indexOf('(empty)') <= 0)
+    {
+        return false;
+    }
+    try
+    {
+        installLog = execSync('npm list  @openapitools/openapi-generator-cli').toString();
+    }
+    catch (e) { installLog = '(empty)'; }
+    if (installLog.indexOf('(empty)') <= 0)
+    {
+        return false;
+    }
+
+    return true;
+}
+function removeCritical(json: any)
+{
+    if (json === null)
+    {
+        return;
+    }
+    if (Array.isArray(json))
+    {
+        let criticalItem: any = null;
+        // eslint-disable-next-line no-constant-condition
+        for (let i = (json as []).length - 1; i >= 0; i = -1)
+        {
+            criticalItem = (json as [])[i];
+            // eslint-disable-next-line no-loop-func
+            if (CRITICAL_PARAMS.findIndex(k => k === criticalItem.name) >= 0)
+            {
+
+                (json as []).splice(i, 1);
+                //  console.log('DELETE');
+
+            }
+            else
+            {
+                removeCritical(criticalItem);
+            }
+            return;
+        }
+    }
+    if (!isObject(json))
+    {
+        return;
+    }
+
+    const keys = Object.keys(json);
+    let currentItem: any;
+    keys.forEach(x =>
+    {
+        currentItem = json[x];
+
+        if (Array.isArray(currentItem) || isObject(currentItem))
+        {
+            removeCritical(currentItem);
+        }
+
+    });
+}
+function updatedConfigJson()
+{
+    const fileName = './src/assets/config.json';
+    configJson.apiEndpointUrl = API_URL.replace('{PORT}', portNumber);
+    // eslint-disable-next-line no-sync
+    fs.writeFileSync
+    (
+        fileName,
+        JSON.stringify(configJson, null, 2),
+        { encoding: 'utf-8' }
+    );
+}
+function updatedPatchConfigJson()
+{
+    const fileName = './src/config/config.patch-prod.json';
+    pachConfigJson.apiEndpointUrl = API_URL.replace('{PORT}', portNumber);
+    // eslint-disable-next-line no-sync
+    fs.writeFileSync
+    (
+        fileName,
+        JSON.stringify(pachConfigJson, null, 2),
+        { encoding: 'utf-8' }
+    );
+}
+(async () =>
+{
+    try
+    {
+
+        if (!portNumber)
+        {
+            console.log('Missing port number, please enter port number');
+            return;
+        }
+
+        console.log('Operation start check is openapi-generator-cli installed');
+        if (!checkIsIsInstalledOpenApi())
+        {
+            console.log('Installing openapi-generator-cli');
+            const installLog = execSync('npm install -g @openapitools/openapi-generator-cli');
+            // console.log(installLog);
+        }
+
+        SWAGGER_URL = SWAGGER_URL.replace('{PORT}', portNumber);
+
+        console.log(`Download swagger JSON --> ${SWAGGER_URL}`);
+        const result = await downloadJSON();
+        console.log('Fix swagger JSON');
+        removeCritical(result);
+        // eslint-disable-next-line no-sync
+        fs.removeSync(SWAGGER_FIXED_PATH);
+        // eslint-disable-next-line no-sync
+        fs.writeFileSync(SWAGGER_FIXED_PATH, JSON.stringify(result, null, 3));
+        // eslint-disable-next-line no-sync
+        fs.removeSync(SWAGGER_GENERATED_PATH);
+        // eslint-disable-next-line no-sync
+        fs.mkdirSync(SWAGGER_GENERATED_PATH);
+        console.log('Build API services');
+        const generatorOutput = execSync('openapi-generator-cli generate -c tools/swagger.config.json -i ' +
+        `${SWAGGER_FIXED_PATH} -g typescript-angular -o ${SWAGGER_GENERATED_PATH} ` +
+             '--type-mappings=DateTime=Date').toString();
+        console.log(generatorOutput);
+
+        console.log('Updated Config files');
+        updatedConfigJson();
+        updatedPatchConfigJson();
+    }
+    catch (e)
+    {
+        console.log(e);
+    }
+})();
+

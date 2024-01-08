@@ -1,0 +1,7 @@
+{
+  "apiEndpointUrl": "https://localhost:44314",
+  "skipLogWriteToServer": false,
+  "maxAttachmentFileSize": 5242880,
+  "maxExportLimit": 1000,
+  "showDemo": false
+}

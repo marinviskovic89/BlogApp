@@ -1,0 +1,117 @@
+<div class="row">
+
+    <!-- Post Content Column -->
+    <div class="col-lg-8">
+
+        <!-- Title -->
+        <h1 class="mt-4">{{post.title}}</h1>
+
+        <!-- Author -->
+        <p class="lead">
+            by
+            <a href="#">{{post.user.firstName}}</a>
+        </p>
+
+        <hr>
+
+        <!-- Date/Time -->
+        <p>Posted on {{generateDate date "MMMM Do YYYY"}}</p>
+
+        <hr>
+
+        <!-- Preview Image -->
+        <img class="img-fluid rounded" src="/uploads/{{post.file}}" alt="">
+
+        <hr>
+
+        <p>{{post.body}}</p>
+
+        <hr>
+
+
+        {{#if post.length > 0}}
+            <div style="width:auto; border-style: solid;border-color: black;">
+                <table class="table table-border table-hover">
+                    <thead class="bg-warning">
+                    <tr>
+                        <th>
+                            s.no
+                        </th>
+                        <th>
+                            Auhtor
+                        </th>
+                        <th>
+                            Books
+                        </th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <%for(var i=0;i< post.length;i++){%>
+                    <tr>
+                        <td>
+                            <%=i+1%>
+                        </td>
+                        <td>
+                            <%=post[i].title%>
+                        </td>
+                        <td>
+                            <%=post[i].file%>
+                        </td>
+                    </tr>
+
+                    </tbody>
+                </table>
+            </div>
+        {{/if}}
+
+        {{#if user}}
+
+            {{#if post.allowComments}}
+                <!-- Comments Form -->
+                <div class="card my-4">
+                    <h5 class="card-header">Leave a Comment:</h5>
+                    <div class="card-body">
+                        <form action="/admin/comments" method="post">
+                            <div class="form-group">
+                                <textarea name="body" class="form-control" rows="3"></textarea>
+
+                                <input type="hidden" name="id" value="{{post.id}}">
+
+                            </div>
+                            <button type="submit" class="btn btn-primary">Submit</button>
+                        </form>
+                    </div>
+                </div>
+
+            {{else}}
+
+                <h2>Comments not allowed for this post</h2>
+                <br>
+                <hr>
+
+            {{/if}}
+
+        {{else}}
+
+            You need to log in for to comment <a href="/login"> Login</a>
+            <br>
+            <hr>
+        {{/if}}
+
+        {{#each post.comments}}
+
+            <!-- Single Comment -->
+            <div class="media mb-4">
+                <img class="d-flex mr-3 rounded-circle" src="https://www.dontshake.org/media/k2/items/cache/c889234799e865bbe90cee71f6cd2e53_L.jpg" alt="">
+                <div class="media-body">
+                    <h5 class="mt-0">{{user.firstName}}</h5>
+                    {{body}}
+                </div>
+            </div>
+        {{/each}}
+
+
+        {{> home/sidebar}}
+    </div>
+
+</div>
